@@ -94,112 +94,127 @@ func SetFlags(flags int) {
 	defaultLogger.SetFlags(flags)
 }
 
-func RawLog(ctx context.Context, skip int, level LogLevel, args ...interface{}) {
+func RawLog(ctx context.Context, level LogLevel, args ...interface{}) {
 	l := FromContext(ctx)
-	l.RawLog(skip + 1, level, args...)
+	l.RawLog(deepen(ctx), level, args...)
 }
 
-func RawLogln(ctx context.Context, skip int, level LogLevel, args ...interface{}) {
+func RawLogln(ctx context.Context, level LogLevel, args ...interface{}) {
 	l := FromContext(ctx)
-	l.RawLogln(skip + 1, level, args...)
+	l.RawLogln(deepen(ctx), level, args...)
 }
 
-func RawLogf(ctx context.Context, skip int, level LogLevel, format string, args ...interface{}) {
+func RawLogf(ctx context.Context, level LogLevel, format string, args ...interface{}) {
 	l := FromContext(ctx)
-	l.RawLogf(skip + 1, level, format, args...)
+	l.RawLogf(deepen(ctx), level, format, args...)
 }
 
 func Print(ctx context.Context, args ...interface{}) {
-	RawLog(ctx, 1, NONE, args...)
+	RawLog(deepen(ctx), NONE, args...)
 }
 
 func Println(ctx context.Context, args ...interface{}) {
-	RawLogln(ctx, 1, NONE, args...)
+	RawLogln(deepen(ctx), NONE, args...)
 }
 
 func Printf(ctx context.Context, format string, args ...interface{}) {
-	RawLogf(ctx, 1, NONE, format, args...)
+	RawLogf(deepen(ctx), NONE, format, args...)
 }
 
 func Debug(ctx context.Context, args ...interface{}) {
-	RawLog(ctx, 1, DEBUG, args...)
+	RawLog(deepen(ctx), DEBUG, args...)
 }
 
 func Debugln(ctx context.Context, args ...interface{}) {
-	RawLogln(ctx, 1, DEBUG, args...)
+	RawLogln(deepen(ctx), DEBUG, args...)
 }
 
 func Debugf(ctx context.Context, format string, args ...interface{}) {
-	RawLogf(ctx, 1, DEBUG, format, args...)
+	RawLogf(deepen(ctx), DEBUG, format, args...)
 }
 
 func Info(ctx context.Context, args ...interface{}) {
-	RawLog(ctx, 1, INFO, args...)
+	RawLog(deepen(ctx), INFO, args...)
 }
 
 func Infoln(ctx context.Context, args ...interface{}) {
-	RawLogln(ctx, 1, INFO, args...)
+	RawLogln(deepen(ctx), INFO, args...)
 }
 
 func Infof(ctx context.Context, format string, args ...interface{}) {
-	RawLogf(ctx, 1, INFO, format, args...)
+	RawLogf(deepen(ctx), INFO, format, args...)
 }
 
 func Warn(ctx context.Context, args ...interface{}) {
-	RawLog(ctx, 1, WARNING, args...)
+	RawLog(deepen(ctx), WARNING, args...)
 }
 
 func Warnln(ctx context.Context, args ...interface{}) {
-	RawLogln(ctx, 1, WARNING, args...)
+	RawLogln(deepen(ctx), WARNING, args...)
 }
 
 func Warnf(ctx context.Context, format string, args ...interface{}) {
-	RawLogf(ctx, 1, WARNING, format, args...)
+	RawLogf(deepen(ctx), WARNING, format, args...)
 }
 
 func Error(ctx context.Context, args ...interface{}) {
-	RawLog(ctx, 1, ERROR, args...)
+	RawLog(deepen(ctx), ERROR, args...)
 }
 
 func Errorln(ctx context.Context, args ...interface{}) {
-	RawLogln(ctx, 1, ERROR, args...)
+	RawLogln(deepen(ctx), ERROR, args...)
 }
 
 func Errorf(ctx context.Context, format string, args ...interface{}) {
-	RawLogf(ctx, 1, ERROR, format, args...)
+	RawLogf(deepen(ctx), ERROR, format, args...)
 }
 
 func Fatal(ctx context.Context, args ...interface{}) {
-	RawLog(ctx, 1, CRITICAL, args...)
+	RawLog(deepen(ctx), CRITICAL, args...)
 	exiter(1)
 }
 
 func Fatalln(ctx context.Context, args ...interface{}) {
-	RawLogln(ctx, 1, CRITICAL, args...)
+	RawLogln(deepen(ctx), CRITICAL, args...)
 	exiter(1)
 }
 
 func Fatalf(ctx context.Context, format string, args ...interface{}) {
-	RawLogf(ctx, 1, CRITICAL, format, args...)
+	RawLogf(deepen(ctx), CRITICAL, format, args...)
 	exiter(1)
 }
 
 func Panic(ctx context.Context, args ...interface{}) {
-	RawLog(ctx, 1, CRITICAL, args...)
+	RawLog(deepen(ctx), CRITICAL, args...)
 	panic(fmt.Sprint(args...))
 }
 
 func Panicln(ctx context.Context, args ...interface{}) {
-	RawLogln(ctx, 1, CRITICAL, args...)
+	RawLogln(deepen(ctx), CRITICAL, args...)
 	panic(fmt.Sprintln(args...))
 }
 
 func Panicf(ctx context.Context, format string, args ...interface{}) {
-	RawLogf(ctx, 1, CRITICAL, format, args...)
+	RawLogf(deepen(ctx), CRITICAL, format, args...)
 	panic(fmt.Sprintf(format, args...))
 }
 
-func Trace(ctx context.Context) {
+func StackTrace(ctx context.Context) {
 	l := FromContext(ctx)
-	l.RawTrace(1, l.Prefix())
+	l.RawStackTrace(deepen(ctx), l.Prefix())
+}
+
+func Trace(ctx context.Context, fnc TraceFunc, args ...interface{}) error {
+	l := FromContext(ctx)
+	return l.Trace(deepen(ctx), fnc, args...)
+}
+
+func Traceln(ctx context.Context, fnc TraceFunc, args ...interface{}) error {
+	l := FromContext(ctx)
+	return l.Traceln(deepen(ctx), fnc, args...)
+}
+
+func Tracef(ctx context.Context, fnc TraceFunc, format string, args ...interface{}) error {
+	l := FromContext(ctx)
+	return l.Tracef(deepen(ctx), fnc, format, args...)
 }

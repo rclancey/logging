@@ -302,15 +302,15 @@ func (a *LoggingSuite) TestPanicf(c *C) {
 	c.Check(strings.TrimSpace(string(buf.Bytes())), Matches, "^[0-9]{4}/[0-9]{2}/[0-9]{2} CRITICAL unittest logging_test.go:[0-9]+: ab / cd$")
 }
 
-func (a *LoggingSuite) TestTrace(c *C) {
+func (a *LoggingSuite) TestStackTrace(c *C) {
 	buf := bytes.NewBuffer([]byte{})
 	l := NewLogger(buf, INFO)
 	l.SetFlags(log.Ldate)
 	l.SetPrefix("trace")
-	l.Trace()
+	l.StackTrace()
 	lines := strings.Split(strings.TrimSpace(string(buf.Bytes())), "\n")
 	c.Check(len(lines) >= 6, Equals, true)
-	c.Check(lines[0], Matches, `[0-9]{4}/[0-9]{2}/[0-9]{2} trace github.com/rclancey/logging.\(\*Logger\).Trace\(\)`)
+	c.Check(lines[0], Matches, `[0-9]{4}/[0-9]{2}/[0-9]{2} trace github.com/rclancey/logging.\(\*Logger\).StackTrace\(\)`)
 	c.Check(lines[1], Matches, `           trace     /.*/github.com/rclancey/logging/logging.go:[0-9]+`)
 	c.Check(lines[2], Matches, `           trace github.com/rclancey/logging.\(\*LoggingSuite\).TestTrace\(\)`)
 	c.Check(lines[3], Matches, `           trace     /.*/github.com/rclancey/logging/logging_test.go:[0-9]+`)

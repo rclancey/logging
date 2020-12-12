@@ -16,7 +16,8 @@ const (
 	ERROR    LogLevel = 3
 	WARNING  LogLevel = 4
 	INFO     LogLevel = 5
-	DEBUG    LogLevel = 6
+	TRACE    LogLevel = 6
+	DEBUG    LogLevel = 7
 	IGNORED  LogLevel = 100
 )
 
@@ -27,6 +28,7 @@ var llNames = map[LogLevel]string{
 	ERROR:    "ERROR",
 	WARNING:  "WARNING",
 	INFO:     "INFO",
+	TRACE:    "TRACE",
 	DEBUG:    "DEBUG",
 	IGNORED:  "IGNORED",
 }

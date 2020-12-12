@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -302,10 +303,11 @@ func (l *Logger) getColorizer(defaultColorizer, colorizer *Colorizer) *Colorizer
 	return defaultColorizer
 }
 
-func (l *Logger) RawWrite(skip int, level LogLevel, message string) (int, error) {
+func (l *Logger) RawWrite(ctx context.Context, level LogLevel, message string, trace ...string) (int, error) {
 	if level > l.level {
 		return 0, nil
 	}
+	skip := getDepth(ctx)
 	dc := l.getColorizer(l.levelColor[level], nil)
 	line := ""
 	if l.timeFormat != "" {
@@ -336,6 +338,9 @@ func (l *Logger) RawWrite(skip int, level LogLevel, message string) (int, error)
 		}
 		line += " "
 	}
+	if len(trace) > 0 {
+		line += dc.Colorize(trace[0]) + " "
+	}
 	if l.sourceFormat != nil {
 		c := l.getColorizer(dc, l.sourceColor)
 		if c != nil {
@@ -355,7 +360,8 @@ func (l *Logger) RawWrite(skip int, level LogLevel, message string) (int, error)
 	return l.w.Write([]byte(line))
 }
 
-func (l *Logger) RawTrace(skip int, prefix string) {
+func (l *Logger) RawStackTrace(ctx context.Context, prefix string) {
+	skip := getDepth(ctx)
 	padding := ""
 	if l.timeFormat != "" {
 		t := time.Now()
@@ -381,115 +387,115 @@ func (l *Logger) RawTrace(skip int, prefix string) {
 	}
 }
 
-func (l *Logger) RawLog(skip int, level LogLevel, args ...interface{}) {
-	l.RawWrite(skip + 1, level, fmt.Sprint(args...))
+func (l *Logger) RawLog(ctx context.Context, level LogLevel, args ...interface{}) {
+	l.RawWrite(deepen(ctx), level, fmt.Sprint(args...))
 }
 
-func (l *Logger) RawLogln(skip int, level LogLevel, args ...interface{}) {
-	l.RawWrite(skip + 1, level, fmt.Sprintln(args...))
+func (l *Logger) RawLogln(ctx context.Context, level LogLevel, args ...interface{}) {
+	l.RawWrite(deepen(ctx), level, fmt.Sprintln(args...))
 }
 
-func (l *Logger) RawLogf(skip int, level LogLevel, format string, args ...interface{}) {
-	l.RawWrite(skip + 1, level, fmt.Sprintf(format, args...))
+func (l *Logger) RawLogf(ctx context.Context, level LogLevel, format string, args ...interface{}) {
+	l.RawWrite(deepen(ctx), level, fmt.Sprintf(format, args...))
 }
 
 func (l *Logger) Write(data []byte) (int, error) {
-	return l.RawWrite(3, LOG, string(data))
+	return l.RawWrite(withDepth(nil, 3), LOG, string(data))
 	//return l.w.Write(data)
 }
 
 func (l *Logger) Print(args ...interface{}) {
-	l.RawLog(1, NONE, args...)
+	l.RawLog(withDepth(nil, 1), NONE, args...)
 }
 
 func (l *Logger) Println(args ...interface{}) {
-	l.RawLogln(1, NONE, args...)
+	l.RawLogln(withDepth(nil, 1), NONE, args...)
 }
 
 func (l *Logger) Printf(format string, args ...interface{}) {
-	l.RawLogf(1, NONE, format, args...)
+	l.RawLogf(withDepth(nil, 1), NONE, format, args...)
 }
 
 func (l *Logger) Debug(args ...interface{}) {
-	l.RawLog(1, DEBUG, args...)
+	l.RawLog(withDepth(nil, 1), DEBUG, args...)
 }
 
 func (l *Logger) Debugln(args ...interface{}) {
-	l.RawLogln(1, DEBUG, args...)
+	l.RawLogln(withDepth(nil, 1), DEBUG, args...)
 }
 
 func (l *Logger) Debugf(format string, args ...interface{}) {
-	l.RawLogf(1, DEBUG, format, args...)
+	l.RawLogf(withDepth(nil, 1), DEBUG, format, args...)
 }
 
 func (l *Logger) Info(args ...interface{}) {
-	l.RawLog(1, INFO, args...)
+	l.RawLog(withDepth(nil, 1), INFO, args...)
 }
 
 func (l *Logger) Infoln(args ...interface{}) {
-	l.RawLogln(1, INFO, args...)
+	l.RawLogln(withDepth(nil, 1), INFO, args...)
 }
 
 func (l *Logger) Infof(format string, args ...interface{}) {
-	l.RawLogf(1, INFO, format, args...)
+	l.RawLogf(withDepth(nil, 1), INFO, format, args...)
 }
 
 func (l *Logger) Warn(args ...interface{}) {
-	l.RawLog(1, WARNING, args...)
+	l.RawLog(withDepth(nil, 1), WARNING, args...)
 }
 
 func (l *Logger) Warnln(args ...interface{}) {
-	l.RawLogln(1, WARNING, args...)
+	l.RawLogln(withDepth(nil, 1), WARNING, args...)
 }
 
 func (l *Logger) Warnf(format string, args ...interface{}) {
-	l.RawLogf(1, WARNING, format, args...)
+	l.RawLogf(withDepth(nil, 1), WARNING, format, args...)
 }
 
 func (l *Logger) Error(args ...interface{}) {
-	l.RawLog(1, ERROR, args...)
+	l.RawLog(withDepth(nil, 1), ERROR, args...)
 }
 
 func (l *Logger) Errorln(args ...interface{}) {
-	l.RawLogln(1, ERROR, args...)
+	l.RawLogln(withDepth(nil, 1), ERROR, args...)
 }
 
 func (l *Logger) Errorf(format string, args ...interface{}) {
-	l.RawLogf(1, ERROR, format, args...)
+	l.RawLogf(withDepth(nil, 1), ERROR, format, args...)
 }
 
 func (l *Logger) Fatal(args ...interface{}) {
-	l.RawLog(1, CRITICAL, args...)
+	l.RawLog(withDepth(nil, 1), CRITICAL, args...)
 	exiter(1)
 }
 
 func (l *Logger) Fatalln(args ...interface{}) {
-	l.RawLogln(1, CRITICAL, args...)
+	l.RawLogln(withDepth(nil, 1), CRITICAL, args...)
 	exiter(1)
 }
 
 func (l *Logger) Fatalf(format string, args ...interface{}) {
-	l.RawLogf(1, CRITICAL, format, args...)
+	l.RawLogf(withDepth(nil, 1), CRITICAL, format, args...)
 	exiter(1)
 }
 
 func (l *Logger) Panic(args ...interface{}) {
-	l.RawLog(1, CRITICAL, args...)
+	l.RawLog(withDepth(nil, 1), CRITICAL, args...)
 	panic(fmt.Sprint(args...))
 }
 
 func (l *Logger) Panicln(args ...interface{}) {
-	l.RawLogln(1, CRITICAL, args...)
+	l.RawLogln(withDepth(nil, 1), CRITICAL, args...)
 	panic(fmt.Sprintln(args...))
 }
 
 func (l *Logger) Panicf(format string, args ...interface{}) {
-	l.RawLogf(1, CRITICAL, format, args...)
+	l.RawLogf(withDepth(nil, 1), CRITICAL, format, args...)
 	panic(fmt.Sprintf(format, args...))
 }
 
-func (l *Logger) Trace() {
-	l.RawTrace(1, l.prefix)
+func (l *Logger) StackTrace() {
+	l.RawStackTrace(withDepth(nil, 1), l.prefix)
 }
 
 func (l *Logger) MakeDefault() {

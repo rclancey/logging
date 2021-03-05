@@ -308,6 +308,25 @@ func (l *Logger) RawWrite(ctx context.Context, level LogLevel, message string, t
 		return 0, nil
 	}
 	skip := getDepth(ctx)
+	sr := NewSourceRecord(skip + 1)
+	return l.RawWriteWithSource(ctx, level, sr, message, trace...)
+}
+
+func (l *Logger) RawWriteAsync(ctx context.Context, level LogLevel, message string, trace ...string) {
+	if level > l.level {
+		return
+	}
+	skip := getDepth(ctx)
+	sr := NewSourceRecord(skip + 1)
+	go func() {
+		l.RawWriteWithSource(ctx, level, sr, message, trace...)
+	}()
+}
+
+func (l *Logger) RawWriteWithSource(ctx context.Context, level LogLevel, sr *SourceRecord, message string, trace ...string) (int, error) {
+	if level > l.level {
+		return 0, nil
+	}
 	dc := l.getColorizer(l.levelColor[level], nil)
 	line := ""
 	if l.timeFormat != "" {
@@ -344,9 +363,9 @@ func (l *Logger) RawWrite(ctx context.Context, level LogLevel, message string, t
 	if l.sourceFormat != nil {
 		c := l.getColorizer(dc, l.sourceColor)
 		if c != nil {
-			line += c.Colorize(l.sourceFormat.Format(skip + 1))
+			line += c.Colorize(l.sourceFormat.FormatRecord(sr))
 		} else {
-			line += l.sourceFormat.Format(skip + 1)
+			line += l.sourceFormat.FormatRecord(sr)
 		}
 		line += " "
 	}
@@ -387,16 +406,40 @@ func (l *Logger) RawStackTrace(ctx context.Context, prefix string) {
 	}
 }
 
+func (l *Logger) RawLogSync(ctx context.Context, level LogLevel, args ...interface{}) {
+	if l.level >= level {
+		l.RawWrite(deepen(ctx), level, fmt.Sprint(args...))
+	}
+}
+
+func (l *Logger) RawLoglnSync(ctx context.Context, level LogLevel, args ...interface{}) {
+	if l.level >= level {
+		l.RawWrite(deepen(ctx), level, fmt.Sprintln(args...))
+	}
+}
+
+func (l *Logger) RawLogfSync(ctx context.Context, level LogLevel, format string, args ...interface{}) {
+	if l.level >= level {
+		l.RawWrite(deepen(ctx), level, fmt.Sprintf(format, args...))
+	}
+}
+
 func (l *Logger) RawLog(ctx context.Context, level LogLevel, args ...interface{}) {
-	l.RawWrite(deepen(ctx), level, fmt.Sprint(args...))
+	if l.level >= level {
+		l.RawWriteAsync(deepen(ctx), level, fmt.Sprint(args...))
+	}
 }
 
 func (l *Logger) RawLogln(ctx context.Context, level LogLevel, args ...interface{}) {
-	l.RawWrite(deepen(ctx), level, fmt.Sprintln(args...))
+	if l.level >= level {
+		l.RawWriteAsync(deepen(ctx), level, fmt.Sprintln(args...))
+	}
 }
 
 func (l *Logger) RawLogf(ctx context.Context, level LogLevel, format string, args ...interface{}) {
-	l.RawWrite(deepen(ctx), level, fmt.Sprintf(format, args...))
+	if l.level >= level {
+		l.RawWriteAsync(deepen(ctx), level, fmt.Sprintf(format, args...))
+	}
 }
 
 func (l *Logger) Write(data []byte) (int, error) {
@@ -465,32 +508,32 @@ func (l *Logger) Errorf(format string, args ...interface{}) {
 }
 
 func (l *Logger) Fatal(args ...interface{}) {
-	l.RawLog(withDepth(nil, 1), CRITICAL, args...)
+	l.RawLogSync(withDepth(nil, 1), CRITICAL, args...)
 	exiter(1)
 }
 
 func (l *Logger) Fatalln(args ...interface{}) {
-	l.RawLogln(withDepth(nil, 1), CRITICAL, args...)
+	l.RawLoglnSync(withDepth(nil, 1), CRITICAL, args...)
 	exiter(1)
 }
 
 func (l *Logger) Fatalf(format string, args ...interface{}) {
-	l.RawLogf(withDepth(nil, 1), CRITICAL, format, args...)
+	l.RawLogfSync(withDepth(nil, 1), CRITICAL, format, args...)
 	exiter(1)
 }
 
 func (l *Logger) Panic(args ...interface{}) {
-	l.RawLog(withDepth(nil, 1), CRITICAL, args...)
+	l.RawLogSync(withDepth(nil, 1), CRITICAL, args...)
 	panic(fmt.Sprint(args...))
 }
 
 func (l *Logger) Panicln(args ...interface{}) {
-	l.RawLogln(withDepth(nil, 1), CRITICAL, args...)
+	l.RawLoglnSync(withDepth(nil, 1), CRITICAL, args...)
 	panic(fmt.Sprintln(args...))
 }
 
 func (l *Logger) Panicf(format string, args ...interface{}) {
-	l.RawLogf(withDepth(nil, 1), CRITICAL, format, args...)
+	l.RawLogfSync(withDepth(nil, 1), CRITICAL, format, args...)
 	panic(fmt.Sprintf(format, args...))
 }
 

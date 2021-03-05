@@ -105,6 +105,10 @@ func NewSourceFormatter(layout string) *SourceFormatter {
 
 func (sf *SourceFormatter) Format(skip int) string {
 	sr := NewSourceRecord(skip + 1)
+	return sf.FormatRecord(sr)
+}
+
+func (sf *SourceFormatter) FormatRecord(sr *SourceRecord) string {
 	if sr == nil {
 		return ""
 	}

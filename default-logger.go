@@ -94,6 +94,21 @@ func SetFlags(flags int) {
 	defaultLogger.SetFlags(flags)
 }
 
+func RawLogSync(ctx context.Context, level LogLevel, args ...interface{}) {
+	l := FromContext(ctx)
+	l.RawLogSync(deepen(ctx), level, args...)
+}
+
+func RawLoglnSync(ctx context.Context, level LogLevel, args ...interface{}) {
+	l := FromContext(ctx)
+	l.RawLoglnSync(deepen(ctx), level, args...)
+}
+
+func RawLogfSync(ctx context.Context, level LogLevel, format string, args ...interface{}) {
+	l := FromContext(ctx)
+	l.RawLogfSync(deepen(ctx), level, format, args...)
+}
+
 func RawLog(ctx context.Context, level LogLevel, args ...interface{}) {
 	l := FromContext(ctx)
 	l.RawLog(deepen(ctx), level, args...)
@@ -170,32 +185,32 @@ func Errorf(ctx context.Context, format string, args ...interface{}) {
 }
 
 func Fatal(ctx context.Context, args ...interface{}) {
-	RawLog(deepen(ctx), CRITICAL, args...)
+	RawLogSync(deepen(ctx), CRITICAL, args...)
 	exiter(1)
 }
 
 func Fatalln(ctx context.Context, args ...interface{}) {
-	RawLogln(deepen(ctx), CRITICAL, args...)
+	RawLoglnSync(deepen(ctx), CRITICAL, args...)
 	exiter(1)
 }
 
 func Fatalf(ctx context.Context, format string, args ...interface{}) {
-	RawLogf(deepen(ctx), CRITICAL, format, args...)
+	RawLogfSync(deepen(ctx), CRITICAL, format, args...)
 	exiter(1)
 }
 
 func Panic(ctx context.Context, args ...interface{}) {
-	RawLog(deepen(ctx), CRITICAL, args...)
+	RawLogSync(deepen(ctx), CRITICAL, args...)
 	panic(fmt.Sprint(args...))
 }
 
 func Panicln(ctx context.Context, args ...interface{}) {
-	RawLogln(deepen(ctx), CRITICAL, args...)
+	RawLoglnSync(deepen(ctx), CRITICAL, args...)
 	panic(fmt.Sprintln(args...))
 }
 
 func Panicf(ctx context.Context, format string, args ...interface{}) {
-	RawLogf(deepen(ctx), CRITICAL, format, args...)
+	RawLogfSync(deepen(ctx), CRITICAL, format, args...)
 	panic(fmt.Sprintf(format, args...))
 }
 

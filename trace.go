@@ -51,6 +51,9 @@ func getTraceId(ctx context.Context) string {
 }
 
 func (l *Logger) RawTrace(ctx context.Context, fnc TraceFunc, msg string) error {
+	if l.level < TRACE {
+		return fnc(ctx)
+	}
 	parentId := getTraceId(ctx)
 	childId := genId()
 	childCtx := withDepth(withTraceId(ctx, childId), 0)
@@ -64,16 +67,25 @@ func (l *Logger) RawTrace(ctx context.Context, fnc TraceFunc, msg string) error 
 }
 
 func (l *Logger) Trace(ctx context.Context, fnc TraceFunc, args ...interface{}) error {
+	if l.level < TRACE {
+		return fnc(ctx)
+	}
 	msg := fmt.Sprint(args...)
 	return l.RawTrace(deepen(ctx), fnc, msg)
 }
 
 func (l *Logger) Traceln(ctx context.Context, fnc TraceFunc, args ...interface{}) error {
+	if l.level < TRACE {
+		return fnc(ctx)
+	}
 	msg := fmt.Sprintln(args...)
 	return l.RawTrace(deepen(ctx), fnc, msg)
 }
 
 func (l *Logger) Tracef(ctx context.Context, fnc TraceFunc, format string, args ...interface{}) error {
+	if l.level < TRACE {
+		return fnc(ctx)
+	}
 	msg := fmt.Sprintf(format, args...)
 	return l.RawTrace(deepen(ctx), fnc, msg)
 }

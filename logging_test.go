@@ -5,15 +5,61 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	. "gopkg.in/check.v1"
 )
 
+var asyncDelay = time.Duration(100) * time.Millisecond
+
 func Test(t *testing.T) { TestingT(t) }
 type LoggingSuite struct {}
 var _ = Suite(&LoggingSuite{})
+
+type Buffer struct {
+	buf *bytes.Buffer
+	wait *sync.Mutex
+	written bool
+}
+
+func NewBuffer() *Buffer {
+	wait := &sync.Mutex{}
+	wait.Lock()
+	return &Buffer{
+		buf: bytes.NewBuffer([]byte{}),
+		wait: wait,
+	}
+}
+
+func (b *Buffer) Write(data []byte) (int, error) {
+	defer func() {
+		written := b.written
+		b.written = true
+		if !written {
+			b.wait.Unlock()
+		}
+	}()
+	return b.buf.Write(data)
+}
+
+func (b *Buffer) Wait() {
+	b.wait.Lock()
+	b.written = false
+}
+
+func (b *Buffer) Reset() {
+	wait := &sync.Mutex{}
+	wait.Lock()
+	b.buf.Reset()
+	b.wait = wait
+	b.written = false
+}
+
+func (b *Buffer) Bytes() []byte {
+	return b.buf.Bytes()
+}
 
 func (a *LoggingSuite) TestNewLogger(c *C) {
 	buf := bytes.NewBuffer([]byte{})
@@ -98,144 +144,161 @@ func (a *LoggingSuite) TestWiths(c *C) {
 func (a *LoggingSuite) TestWrite(c *C) {
 	buf := bytes.NewBuffer([]byte{})
 	l := NewLogger(buf, INFO)
+	l.SetTimeFormat("")
+	l.SetSourceFormat("")
 	n, err := l.Write([]byte("when in the course of human events\n"))
-	c.Check(n, Equals, 35)
+	c.Check(n, Equals, 44)
 	c.Check(err, IsNil)
-	c.Check(string(buf.Bytes()), Equals, "when in the course of human events\n")
+	c.Check(string(buf.Bytes()), Equals, "LOG      when in the course of human events\n")
 }
 
 func (a *LoggingSuite) TestPrint(c *C) {
-	buf := bytes.NewBuffer([]byte{})
+	buf := NewBuffer()
 	l := NewLogger(buf, DEBUG)
 	l.SetFlags(log.Ldate | log.Lshortfile)
 	l.SetPrefix("unittest")
 	l.Print("ab", "cd")
+	buf.Wait()
 	c.Check(strings.TrimSpace(string(buf.Bytes())), Matches, "^[0-9]{4}/[0-9]{2}/[0-9]{2}          unittest logging_test.go:[0-9]+: abcd$")
 }
 
 func (a *LoggingSuite) TestPrintln(c *C) {
-	buf := bytes.NewBuffer([]byte{})
+	buf := NewBuffer()
 	l := NewLogger(buf, DEBUG)
 	l.SetFlags(log.Ldate | log.Lshortfile)
 	l.SetPrefix("unittest")
 	l.Println("ab", "cd")
+	buf.Wait()
 	c.Check(strings.TrimSpace(string(buf.Bytes())), Matches, "^[0-9]{4}/[0-9]{2}/[0-9]{2}          unittest logging_test.go:[0-9]+: ab cd$")
 }
 
 func (a *LoggingSuite) TestPrintf(c *C) {
-	buf := bytes.NewBuffer([]byte{})
+	buf := NewBuffer()
 	l := NewLogger(buf, DEBUG)
 	l.SetFlags(log.Ldate | log.Lshortfile)
 	l.SetPrefix("unittest")
 	l.Printf("%s / %s", "ab", "cd")
+	buf.Wait()
 	c.Check(strings.TrimSpace(string(buf.Bytes())), Matches, "^[0-9]{4}/[0-9]{2}/[0-9]{2}          unittest logging_test.go:[0-9]+: ab / cd$")
 }
 
 func (a *LoggingSuite) TestDebug(c *C) {
-	buf := bytes.NewBuffer([]byte{})
+	buf := NewBuffer()
 	l := NewLogger(buf, DEBUG)
 	l.SetFlags(log.Ldate | log.Lshortfile)
 	l.SetPrefix("unittest")
 	l.Debug("ab", "cd")
+	buf.Wait()
 	c.Check(strings.TrimSpace(string(buf.Bytes())), Matches, "^[0-9]{4}/[0-9]{2}/[0-9]{2} DEBUG    unittest logging_test.go:[0-9]+: abcd$")
 }
 
 func (a *LoggingSuite) TestDebugln(c *C) {
-	buf := bytes.NewBuffer([]byte{})
+	buf := NewBuffer()
 	l := NewLogger(buf, DEBUG)
 	l.SetFlags(log.Ldate | log.Lshortfile)
 	l.SetPrefix("unittest")
 	l.Debugln("ab", "cd")
+	buf.Wait()
 	c.Check(strings.TrimSpace(string(buf.Bytes())), Matches, "^[0-9]{4}/[0-9]{2}/[0-9]{2} DEBUG    unittest logging_test.go:[0-9]+: ab cd$")
 }
 
 func (a *LoggingSuite) TestDebugf(c *C) {
-	buf := bytes.NewBuffer([]byte{})
+	buf := NewBuffer()
 	l := NewLogger(buf, DEBUG)
 	l.SetFlags(log.Ldate | log.Lshortfile)
 	l.SetPrefix("unittest")
 	l.Debugf("%s / %s", "ab", "cd")
+	buf.Wait()
 	c.Check(strings.TrimSpace(string(buf.Bytes())), Matches, "^[0-9]{4}/[0-9]{2}/[0-9]{2} DEBUG    unittest logging_test.go:[0-9]+: ab / cd$")
 }
 
 func (a *LoggingSuite) TestInfo(c *C) {
-	buf := bytes.NewBuffer([]byte{})
+	buf := NewBuffer()
 	l := NewLogger(buf, DEBUG)
 	l.SetFlags(log.Ldate | log.Lshortfile)
 	l.SetPrefix("unittest")
 	l.Info("ab", "cd")
+	buf.Wait()
 	c.Check(strings.TrimSpace(string(buf.Bytes())), Matches, "^[0-9]{4}/[0-9]{2}/[0-9]{2} INFO     unittest logging_test.go:[0-9]+: abcd$")
 }
 
 func (a *LoggingSuite) TestInfoln(c *C) {
-	buf := bytes.NewBuffer([]byte{})
+	buf := NewBuffer()
 	l := NewLogger(buf, DEBUG)
 	l.SetFlags(log.Ldate | log.Lshortfile)
 	l.SetPrefix("unittest")
 	l.Infoln("ab", "cd")
+	buf.Wait()
 	c.Check(strings.TrimSpace(string(buf.Bytes())), Matches, "^[0-9]{4}/[0-9]{2}/[0-9]{2} INFO     unittest logging_test.go:[0-9]+: ab cd$")
 }
 
 func (a *LoggingSuite) TestInfof(c *C) {
-	buf := bytes.NewBuffer([]byte{})
+	buf := NewBuffer()
 	l := NewLogger(buf, DEBUG)
 	l.SetFlags(log.Ldate | log.Lshortfile)
 	l.SetPrefix("unittest")
 	l.Infof("%s / %s", "ab", "cd")
+	buf.Wait()
 	c.Check(strings.TrimSpace(string(buf.Bytes())), Matches, "^[0-9]{4}/[0-9]{2}/[0-9]{2} INFO     unittest logging_test.go:[0-9]+: ab / cd$")
 }
 
 func (a *LoggingSuite) TestWarn(c *C) {
-	buf := bytes.NewBuffer([]byte{})
+	buf := NewBuffer()
 	l := NewLogger(buf, DEBUG)
 	l.SetFlags(log.Ldate | log.Lshortfile)
 	l.SetPrefix("unittest")
 	l.Warn("ab", "cd")
+	buf.Wait()
 	c.Check(strings.TrimSpace(string(buf.Bytes())), Matches, "^[0-9]{4}/[0-9]{2}/[0-9]{2} WARNING  unittest logging_test.go:[0-9]+: abcd$")
 }
 
 func (a *LoggingSuite) TestWarnln(c *C) {
-	buf := bytes.NewBuffer([]byte{})
+	buf := NewBuffer()
 	l := NewLogger(buf, DEBUG)
 	l.SetFlags(log.Ldate | log.Lshortfile)
 	l.SetPrefix("unittest")
 	l.Warnln("ab", "cd")
+	buf.Wait()
 	c.Check(strings.TrimSpace(string(buf.Bytes())), Matches, "^[0-9]{4}/[0-9]{2}/[0-9]{2} WARNING  unittest logging_test.go:[0-9]+: ab cd$")
 }
 
 func (a *LoggingSuite) TestWarnf(c *C) {
-	buf := bytes.NewBuffer([]byte{})
+	buf := NewBuffer()
 	l := NewLogger(buf, DEBUG)
 	l.SetFlags(log.Ldate | log.Lshortfile)
 	l.SetPrefix("unittest")
 	l.Warnf("%s / %s", "ab", "cd")
+	buf.Wait()
 	c.Check(strings.TrimSpace(string(buf.Bytes())), Matches, "^[0-9]{4}/[0-9]{2}/[0-9]{2} WARNING  unittest logging_test.go:[0-9]+: ab / cd$")
 }
 
 func (a *LoggingSuite) TestError(c *C) {
-	buf := bytes.NewBuffer([]byte{})
+	buf := NewBuffer()
 	l := NewLogger(buf, DEBUG)
 	l.SetFlags(log.Ldate | log.Lshortfile)
 	l.SetPrefix("unittest")
 	l.Error("ab", "cd")
+	buf.Wait()
 	c.Check(strings.TrimSpace(string(buf.Bytes())), Matches, "^[0-9]{4}/[0-9]{2}/[0-9]{2} ERROR    unittest logging_test.go:[0-9]+: abcd$")
 }
 
 func (a *LoggingSuite) TestErrorln(c *C) {
-	buf := bytes.NewBuffer([]byte{})
+	buf := NewBuffer()
 	l := NewLogger(buf, DEBUG)
 	l.SetFlags(log.Ldate | log.Lshortfile)
 	l.SetPrefix("unittest")
 	l.Errorln("ab", "cd")
+	buf.Wait()
 	c.Check(strings.TrimSpace(string(buf.Bytes())), Matches, "^[0-9]{4}/[0-9]{2}/[0-9]{2} ERROR    unittest logging_test.go:[0-9]+: ab cd$")
 }
 
 func (a *LoggingSuite) TestErrorf(c *C) {
-	buf := bytes.NewBuffer([]byte{})
+	buf := NewBuffer()
 	l := NewLogger(buf, DEBUG)
 	l.SetFlags(log.Ldate | log.Lshortfile)
 	l.SetPrefix("unittest")
 	l.Errorf("%s / %s", "ab", "cd")
+	buf.Wait()
 	c.Check(strings.TrimSpace(string(buf.Bytes())), Matches, "^[0-9]{4}/[0-9]{2}/[0-9]{2} ERROR    unittest logging_test.go:[0-9]+: ab / cd$")
 }
 
@@ -312,7 +375,7 @@ func (a *LoggingSuite) TestStackTrace(c *C) {
 	c.Check(len(lines) >= 6, Equals, true)
 	c.Check(lines[0], Matches, `[0-9]{4}/[0-9]{2}/[0-9]{2} trace github.com/rclancey/logging.\(\*Logger\).StackTrace\(\)`)
 	c.Check(lines[1], Matches, `           trace     /.*/github.com/rclancey/logging/logging.go:[0-9]+`)
-	c.Check(lines[2], Matches, `           trace github.com/rclancey/logging.\(\*LoggingSuite\).TestTrace\(\)`)
+	c.Check(lines[2], Matches, `           trace github.com/rclancey/logging.\(\*LoggingSuite\).TestStackTrace\(\)`)
 	c.Check(lines[3], Matches, `           trace     /.*/github.com/rclancey/logging/logging_test.go:[0-9]+`)
 }
 
@@ -338,7 +401,7 @@ func (a *LoggingSuite) TestClone(c *C) {
 }
 
 func (a *LoggingSuite) TestFormatting(c *C) {
-	buf := bytes.NewBuffer([]byte{})
+	buf := NewBuffer()
 	l := NewLogger(buf, DEBUG)
 	l.SetSourceFormat("")
 	before := time.Now()
@@ -347,6 +410,7 @@ func (a *LoggingSuite) TestFormatting(c *C) {
 	log.Println("warn took", after.Sub(before))
 	os.Stderr.Write(buf.Bytes())
 	l = l.WithColor()
+	buf.Wait()
 	buf.Reset()
 	l.SetLevelColor(DEBUG, ColorBlue, ColorBlack, FontItalic)
 	l.SetSourceFormat("%{package}/%{filename}:%{linenumber:05x}:%{foo:x}")
@@ -361,5 +425,6 @@ func (a *LoggingSuite) TestFormatting(c *C) {
 	after = time.Now()
 	log.Println("debug took", after.Sub(before))
 	os.Stderr.Write(buf.Bytes())
+	buf.Wait()
 	c.Check(strings.TrimSpace(string(buf.Bytes())), Matches, `^.\[38;5;199;49m[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}-0[78]:00.\[0m .\[34;40;3mDEBUG   .\[0m .\[34;40;3munittest.\[0m .\[34;40;3mgithub\.com/rclancey/logging/logging_test\.go:[0-9a-f]{5}:%{foo:x}.\[0m .\[34;40;3mabcd.\[0m$`)
 }
